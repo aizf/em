@@ -3,9 +3,11 @@ import json
 import random
 import sys
 import time
+import traceback
 
 import xlwt
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -34,16 +36,14 @@ class Craw:
         drive.switch_to.window(drive.window_handles[-1])
         # print(drive.title)
         WebDriverWait(drive, 20).until(
-            lambda drive: drive.find_element_by_css_selector(
-                "div.module.module-share-list > div > table > tbody > tr:nth-child(1)")
+            lambda drive: drive.find_element_by_css_selector("div.module.module-share-list > div > table > tbody > tr:nth-child(1)")
         )
         drive.find_element_by_css_selector(
             "div.module.module-share-list > div > table > tbody > tr:nth-child(1) > td:nth-child(2) > a"
         ).click()
         drive.switch_to.window(drive.window_handles[-1])
         WebDriverWait(drive, 10).until(
-            lambda drive: drive.find_element_by_css_selector(
-                "body > div:nth-child(13) > div.hqrls > div:nth-child(1) > a:nth-child(9)")
+            lambda drive: drive.find_element_by_css_selector("body > div:nth-child(13) > div.hqrls > div:nth-child(1) > a:nth-child(9)")
         )  # 等财务分析
         drive.find_element_by_css_selector(
             "body > div:nth-child(13) > div.hqrls > div:nth-child(1) > a:nth-child(9)"
@@ -55,8 +55,7 @@ class Craw:
         page = 0
         # 第一格
         WebDriverWait(drive, 10).until(
-            lambda drive: drive.find_element_by_css_selector(
-                "#" + sheetId + " > tbody > tr:nth-child(1) > th:nth-child(1)")
+            lambda drive: drive.find_element_by_css_selector("#" + sheetId + " > tbody > tr:nth-child(1) > th:nth-child(1)")
         )  # 等
         sheet.write(
             0, 0,
@@ -69,7 +68,10 @@ class Craw:
                                                   " > tbody > tr")
         # 第一列[1:]
         for i, tr in enumerate(trs[1:], 1):
-            head = tr.find_element_by_tag_name("td")
+            try:
+                head = tr.find_element_by_tag_name("td")
+            except NoSuchElementException:
+                head = tr.find_element_by_tag_name("th")
             sheet.write(i, 0, head.text)
 
         while page < 100:
@@ -88,11 +90,20 @@ class Craw:
             # 其他行[1:]
             for tr in trs[1:]:
                 line = 1 + page * pageLines
-                for td in tr.find_elements_by_tag_name("td")[1:]:
+                
+                tds_ths=tr.find_elements_by_tag_name("td")
+                if len(tds_ths)==0:
+                    tds_ths=tr.find_elements_by_tag_name("th")
+
+                for td in tds_ths[1:]:
                     sheet.write(row, line, td.text)
                     line += 1
                 row += 1
 
+            try:
+                drive.find_element_by_css_selector("#" + nextId)
+            except NoSuchElementException:
+                break
             if "none" in drive.find_element_by_css_selector(
                     "#" + nextId).get_attribute("style"):
                 break
@@ -102,13 +113,14 @@ class Craw:
             drive.find_element_by_css_selector("#" + nextId).click()
             try:
                 WebDriverWait(drive, 15).until(
-                    lambda drive: judgeAjax != drive.find_element_by_css_selector(
-                        "#" + sheetId + " > tbody > tr:nth-child(1) > th:nth-child(2)").text
+                    lambda drive: judgeAjax != drive.find_element_by_css_selector("#" + sheetId + " > tbody > tr:nth-child(1) > th:nth-child(2)").text
                 )  # 等加载
             except:
                 print(judgeAjax)
-                print(drive.find_element_by_css_selector("#" + sheetId +
-                                                         " > tbody > tr:nth-child(1) > th:nth-child(2)").text)
+                print(
+                    drive.find_element_by_css_selector(
+                        "#" + sheetId +
+                        " > tbody > tr:nth-child(1) > th:nth-child(2)").text)
                 sys.exit()
             drive.execute_script(r'$("#' + sheetId + r' > tbody > tr").show()')
             page += 1
@@ -124,8 +136,9 @@ class Craw:
             for li in lis:
                 if "none" in li.get_attribute("style"):
                     continue
-                WebDriverWait(drive, 10).until(EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "#zcfzb_ul > li")))  # 等可被点击
+                WebDriverWait(drive, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR,
+                                                "#zcfzb_ul > li")))  # 等可被点击
                 li.click()
                 sheet = excel.add_sheet(li.text, cell_overwrite_ok=True)
                 time.sleep(0.5)  # 等加载
@@ -133,7 +146,7 @@ class Craw:
         except:
             print("TheBalanceSheet except")
         finally:
-            excel.save("d:\\"+self.keyword+"资产负债表.xls")
+            excel.save("d:\\" + self.keyword + "资产负债表.xls")
 
     def crawProfitStatement_1(self):
         try:
@@ -146,8 +159,9 @@ class Craw:
             for li in lis:
                 if "none" in li.get_attribute("style"):
                     continue
-                WebDriverWait(drive, 10).until(EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "#lrb_ul > li")))  # 等可被点击
+                WebDriverWait(drive, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR,
+                                                "#lrb_ul > li")))  # 等可被点击
                 li.click()
                 sheet = excel.add_sheet(li.text, cell_overwrite_ok=True)
                 time.sleep(0.5)  # 等加载
@@ -155,7 +169,7 @@ class Craw:
         except:
             print("ProfitStatement except")
         finally:
-            excel.save("d:\\"+self.keyword+"利润表.xls")
+            excel.save("d:\\" + self.keyword + "利润表.xls")
 
     def crawCashFlowStatement_1(self):
         try:
@@ -168,8 +182,9 @@ class Craw:
             for li in lis:
                 if "none" in li.get_attribute("style"):
                     continue
-                WebDriverWait(drive, 10).until(EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "#xjllb_ul > li")))  # 等可被点击
+                WebDriverWait(drive, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR,
+                                                "#xjllb_ul > li")))  # 等可被点击
                 li.click()
                 sheet = excel.add_sheet(li.text, cell_overwrite_ok=True)
                 time.sleep(0.5)  # 等加载
@@ -177,83 +192,88 @@ class Craw:
         except:
             print("CashFlowStatement except")
         finally:
-            excel.save("d:\\"+self.keyword+"现金流量表.xls")
+            excel.save("d:\\" + self.keyword + "现金流量表.xls")
 
     def crawTheBalanceSheet_2(self):
         try:
             drive = self.__drive
             excel = xlwt.Workbook(encoding='utf-8', style_compression=0)
-            divId="report_zcfzb"
+            divId = "report_zcfzb"
+            sheetId = divId+" > table"
             nextId = "zcfzb_next"
             lis = drive.find_elements_by_css_selector("#ulzcfzb > li")
 
             for li in lis:
                 if "none" in li.get_attribute("style"):
                     continue
-                WebDriverWait(drive, 10).until(EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "#ulzcfzb > li")))  # 等可被点击
+                WebDriverWait(drive, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR,
+                                                "#ulzcfzb > li")))  # 等可被点击
                 li.click()
                 sheet = excel.add_sheet(li.text, cell_overwrite_ok=True)
                 time.sleep(1.2)  # 等加载
-                drive.execute_script("$(\"#"+divId+" > table\").attr(\"id\","+divId+divId+");")
-                sheetId=drive.fin
                 self.crawSheet(excel, sheet, sheetId, nextId, 6)
-        except:
+        except Exception as e:
             print("TheBalanceSheet except")
+            traceback.print_exc()
         finally:
-            excel.save("d:\\"+self.keyword+"资产负债表.xls")
+            excel.save("d:\\" + self.keyword + "资产负债表.xls")
 
     def crawProfitStatement_2(self):
         try:
             drive = self.__drive
             excel = xlwt.Workbook(encoding='utf-8', style_compression=0)
-            sheetId = "report_lrb"
-            nextId = ""
-            lis = drive.find_elements_by_css_selector("#lrb_ul > li")
+            divId = "report_lrb"
+            sheetId = divId+" > table"
+            nextId = "lrb_next"
+            lis = drive.find_elements_by_css_selector("#ullrb > li")
 
             for li in lis:
                 if "none" in li.get_attribute("style"):
                     continue
-                WebDriverWait(drive, 10).until(EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "#lrb_ul > li")))  # 等可被点击
+                WebDriverWait(drive, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR,
+                                                "#ullrb > li")))  # 等可被点击
                 li.click()
                 sheet = excel.add_sheet(li.text, cell_overwrite_ok=True)
-                time.sleep(0.5)  # 等加载
+                time.sleep(1.2)  # 等加载
                 self.crawSheet(excel, sheet, sheetId, nextId, 6)
         except:
             print("ProfitStatement except")
         finally:
-            excel.save("d:\\"+self.keyword+"利润表.xls")
+            excel.save("d:\\" + self.keyword + "综合损益表.xls")
 
     def crawCashFlowStatement_2(self):
         try:
             drive = self.__drive
             excel = xlwt.Workbook(encoding='utf-8', style_compression=0)
-            sheetId = "report_xjllb"
-            nextId = ""
-            lis = drive.find_elements_by_css_selector("#xjllb_ul > li")
+            divId = "report_xjllb"
+            sheetId = divId+" > table"
+            nextId = "xjllb_next"
+            lis = drive.find_elements_by_css_selector("#ulxjllb > li")
 
             for li in lis:
                 if "none" in li.get_attribute("style"):
                     continue
-                WebDriverWait(drive, 10).until(EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "#xjllb_ul > li")))  # 等可被点击
+                WebDriverWait(drive, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR,
+                                                "#ulxjllb > li")))  # 等可被点击
                 li.click()
                 sheet = excel.add_sheet(li.text, cell_overwrite_ok=True)
-                time.sleep(0.5)  # 等加载
+                time.sleep(1.2)  # 等加载
                 self.crawSheet(excel, sheet, sheetId, nextId, 6)
         except:
             print("CashFlowStatement except")
         finally:
-            excel.save("d:\\"+self.keyword+"现金流量表.xls")
+            excel.save("d:\\" + self.keyword + "现金流量表.xls")
 
     def runCraw(self):
         theType = input("type 1 or 2 ?：")
-        if theType == 1:
+        if theType == "1":
             self.crawTheBalanceSheet_1()
             self.crawProfitStatement_1()
             self.crawCashFlowStatement_1()
-        elif theType == 2:
+        elif theType == "2":
             self.crawTheBalanceSheet_2()
             self.crawProfitStatement_2()
             self.crawCashFlowStatement_2()
@@ -278,5 +298,5 @@ drive = webdriver.Chrome()
 # type 2
 # http://emweb.eastmoney.com/pc_usf10/FinancialAnalysis/index?color=web&code=NTES.O
 craw = Craw(drive, input("粘贴网址："))
-# craw.runCraw()
-craw.__test__()
+craw.runCraw()
+# craw.__test__()
