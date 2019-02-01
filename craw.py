@@ -16,11 +16,11 @@ sys.stdout = io.TextIOWrapper(
 
 
 class Craw:
-    def __init__(self, drive, url, keyword):
+    def __init__(self, drive, url):
         self.__drive = drive
         self.__url = url
         drive.get(self.__url)  # 工作页面
-        self.keyword = keyword
+        self.keyword = drive.title.replace(" ","_")
 
     def __prepare(self):
         drive = self.__drive
@@ -125,36 +125,58 @@ class Craw:
                 time.sleep(0.5)  #等加载
                 self.crawSheet(excel, sheet, sheetId, nextId)
         except:
-            print("except")
+            print("TheBalanceSheet except")
         finally:
-            excel.save(r'd:\theBalanceSheet.xls')
+            excel.save("d:\\"+self.keyword+"资产负债表.xls")
 
     def crawProfitStatement(self):
-        pass
+        try:
+            drive = self.__drive
+            excel = xlwt.Workbook(encoding='utf-8', style_compression=0)
+            sheetId = "report_lrb"
+            nextId = "lrb_next"
+            lis = drive.find_elements_by_css_selector("#lrb_ul > li")
+
+            for li in lis:
+                if "none" in li.get_attribute("style"):
+                    continue
+                WebDriverWait(drive, 10).until( EC.element_to_be_clickable((By.CSS_SELECTOR,"#lrb_ul > li")) )  #等可被点击
+                li.click()
+                sheet = excel.add_sheet(li.text, cell_overwrite_ok=True)
+                time.sleep(0.5)  #等加载
+                self.crawSheet(excel, sheet, sheetId, nextId)
+        except:
+            print("ProfitStatement except")
+        finally:
+            excel.save("d:\\"+self.keyword+"利润表.xls")
 
     def crawCashFlowStatement(self):
-        pass
+        try:
+            drive = self.__drive
+            excel = xlwt.Workbook(encoding='utf-8', style_compression=0)
+            sheetId = "report_xjllb"
+            nextId = "xjllb_next"
+            lis = drive.find_elements_by_css_selector("#xjllb_ul > li")
+
+            for li in lis:
+                if "none" in li.get_attribute("style"):
+                    continue
+                WebDriverWait(drive, 10).until( EC.element_to_be_clickable((By.CSS_SELECTOR,"#xjllb_ul > li")) )  #等可被点击
+                li.click()
+                sheet = excel.add_sheet(li.text, cell_overwrite_ok=True)
+                time.sleep(0.5)  #等加载
+                self.crawSheet(excel, sheet, sheetId, nextId)
+        except:
+            print("CashFlowStatement except")
+        finally:
+            excel.save("d:\\"+self.keyword+"现金流量表.xls")
 
     def runCraw(self):
-        try:
-            # self.__prepare()
-            # i=input("哪个？\t")
-            i = input(r'Press "y" to start.')
-        except:
-            # print(self.keyword + " except")
-            print("except")
-        finally:
-            # if i=0:
-            #     pass
-            # elif expression:
-            #     pass
-            if i == "y":
-                self.crawTheBalanceSheet()
-                self.crawProfitStatement()
-                self.crawCashFlowStatement()
-
-            drive.execute_script(r'alert("Done.")')
-            time.sleep(random.uniform(1.11, 4.11))
+        self.crawTheBalanceSheet()
+        self.crawProfitStatement()
+        self.crawCashFlowStatement()
+        print("craw done")
+        drive.execute_script(r'alert("Done.")')
 
     def __test__(self):
         # self.__prepare()
@@ -167,6 +189,6 @@ class Craw:
 webdriver.Chrome().get("http://www.eastmoney.com/")
 drive = webdriver.Chrome()
 # http://f10.eastmoney.com/f10_v2/FinanceAnalysis.aspx?code=sz000002
-craw = Craw(drive, input("粘贴网址："), "")
-# craw.runCraw()
-craw.__test__()
+craw = Craw(drive, input("粘贴网址："))
+craw.runCraw()
+# craw.__test__()
